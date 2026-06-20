@@ -1,0 +1,86 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from src.account.schemas.user import UserCreateSchema, UserResponseSchema
+from src.account.services.user import UserService, UserAlreadyExist, UserNotFound
+from src.core.database import get_sync_session
+
+router = APIRouter(
+    prefix="/users",
+    tags=["Account"]
+)
+
+
+@router.post(
+    path="/",
+    response_model=UserResponseSchema,
+    status_code=201
+)
+def create_user(
+    user_schema: UserCreateSchema,
+    session: Session = Depends(get_sync_session),
+):
+    try:
+        user_service = UserService(session)
+        return user_service.create(user_schema=user_schema)
+    except UserAlreadyExist:
+        raise HTTPException(status_code=409, detail="User already exists")
+
+@router.get(
+    path="/{user_id}",
+    response_model=UserResponseSchema,
+    status_code=200
+)
+def get_user(
+    user_id: int,
+    session: Session = Depends(get_sync_session),
+):
+    try:
+        user_service = UserService(session)
+        return user_service.get_one(user_id=user_id)
+    except UserNotFound:
+        raise HTTPException(status_code=404, detail="User not found")
+
+@router.get(
+    path="/",
+    response_model=list[UserResponseSchema],
+    status_code=200
+)
+def get_users(
+    session: Session = Depends(get_sync_session),
+):
+    user_service = UserService(session)
+    return user_service.get_all()
+
+
+
+@router.put(
+    path="/{user_id}",
+    response_model=UserResponseSchema,
+    status_code=200
+)
+def update_user(
+    user_id: int,
+    user_schema: UserCreateSchema,
+    session: Session = Depends(get_sync_session),
+):
+    try:
+        user_service = UserService(session)
+        return user_service.update(user_id=user_id, user_schema=user_schema)
+    except UserNotFound:
+        raise HTTPException(status_code=404, detail="User not found")
+
+
+@router.delete(
+    path="/",
+    status_code=204
+)
+def remove_user(
+    user_id: int,
+    session: Session = Depends(get_sync_session),
+):
+    try:
+        user_service = UserService(session)
+        return user_service.remove(user_id=user_id)
+    except UserNotFound:
+        raise HTTPException(status_code=404, detail="User not found")
